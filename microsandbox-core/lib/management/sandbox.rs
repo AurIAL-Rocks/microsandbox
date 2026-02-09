@@ -11,9 +11,10 @@ use std::{
 
 use chrono::{DateTime, Utc};
 use microsandbox_utils::{
-    DEFAULT_MSBRUN_EXE_PATH, DEFAULT_SHELL, EXTRACTED_LAYER_SUFFIX, LAYERS_SUBDIR, LOG_SUBDIR,
-    MICROSANDBOX_CONFIG_FILENAME, MICROSANDBOX_ENV_DIR, MSBRUN_EXE_ENV_VAR, OCI_DB_FILENAME,
-    PATCH_SUBDIR, RW_SUBDIR, SANDBOX_DB_FILENAME, SANDBOX_DIR, SCRIPTS_DIR, SHELL_SCRIPT_NAME, env,
+    DEFAULT_MSBRUN_EXE_PATH, DEFAULT_NUM_VCPUS, DEFAULT_SHELL, EXTRACTED_LAYER_SUFFIX, LAYERS_SUBDIR,
+    LOG_SUBDIR, MICROSANDBOX_CONFIG_FILENAME, MICROSANDBOX_ENV_DIR, MSBRUN_EXE_ENV_VAR,
+    OCI_DB_FILENAME, PATCH_SUBDIR, RW_SUBDIR, SANDBOX_DB_FILENAME, SANDBOX_DIR, SCRIPTS_DIR,
+    SHELL_SCRIPT_NAME, env,
 };
 use sqlx::{Pool, Sqlite};
 use tempfile;
@@ -184,6 +185,8 @@ pub async fn prepare_run(
 
     tracing::debug!("original sandbox config: {:#?}", sandbox_config);
 
+    adjust_sandbox_cpu_config(sandbox_name, &mut sandbox_config);
+
     // Sandbox database path
     let sandbox_db_path = menv_path.join(SANDBOX_DB_FILENAME);
 
@@ -257,6 +260,12 @@ pub async fn prepare_run(
     // CPU
     if let Some(cpus) = sandbox_config.get_cpus() {
         command.arg("--num-vcpus").arg(cpus.to_string());
+    }
+
+    if let Some(startup_cpus) = sandbox_config.get_startup_cpus() {
+        command
+            .arg("--startup-cpus")
+            .arg(startup_cpus.to_string());
     }
 
     // Memory
@@ -389,6 +398,7 @@ pub async fn prepare_run(
 /// * `image` - The OCI image reference to use as the base for the sandbox
 /// * `script` - The name of the script to execute within the sandbox
 /// * `cpus` - Optional number of virtual CPUs to allocate to the sandbox
+/// * `startup_cpus` - Optional number of virtual CPUs to allocate during startup
 /// * `memory` - Optional amount of memory in MiB to allocate to the sandbox
 /// * `volumes` - List of volume mappings in the format "host_path:guest_path"
 /// * `ports` - List of port mappings in the format "host_port:guest_port"
@@ -422,6 +432,7 @@ pub async fn prepare_run(
 ///         &image,
 ///         Some("start"),     // Script name
 ///         Some(2.0),           // 2 CPUs
+///         None,              // No startup CPU override
 ///         Some(1024),        // 1GB RAM
 ///         vec![              // Mount host's /tmp to sandbox's /data
 ///             "/tmp:/data".to_string()
@@ -446,6 +457,7 @@ pub async fn run_temp(
     image: &Reference,
     script: Option<&str>,
     cpus: Option<f32>,
+    startup_cpus: Option<f32>,
     memory: Option<u32>,
     volumes: Vec<String>,
     ports: Vec<String>,
@@ -469,11 +481,15 @@ pub async fn run_temp(
     let envs: Vec<EnvPair> = envs.into_iter().filter_map(|e| e.parse().ok()).collect();
 
     // Build the temporary sandbox configuration.
-    let sandbox = {
+    let mut sandbox = {
         let mut b = Sandbox::builder().image(ReferenceOrPath::Reference(image.clone()));
 
         if let Some(cpus) = cpus {
             b = b.cpus(cpus);
+        }
+
+        if let Some(startup_cpus) = startup_cpus {
+            b = b.startup_cpus(startup_cpus);
         }
 
         if let Some(memory) = memory {
@@ -502,6 +518,8 @@ pub async fn run_temp(
 
         b.build()
     };
+
+    adjust_sandbox_cpu_config(TEMPORARY_SANDBOX_NAME, &mut sandbox);
 
     // Create the microsandbox config with the temporary sandbox
     let config = Microsandbox::builder()
@@ -535,6 +553,45 @@ pub async fn run_temp(
 //--------------------------------------------------------------------------------------------------
 // Functions: Helpers
 //--------------------------------------------------------------------------------------------------
+
+fn adjust_sandbox_cpu_config(sandbox_name: &str, sandbox_config: &mut Sandbox) {
+    if let Some(cpus) = sandbox_config.cpus
+        && cpus < 1.0
+        && !cfg!(target_os = "linux")
+    {
+        tracing::warn!(
+            "fractional CPUs are only supported on Linux; using cpus=1.0 for {}",
+            sandbox_name
+        );
+        sandbox_config.cpus = Some(1.0);
+    }
+
+    if let Some(startup_cpus) = sandbox_config.startup_cpus
+        && startup_cpus < 1.0
+        && !cfg!(target_os = "linux")
+    {
+        tracing::warn!(
+            "fractional startup CPUs are only supported on Linux; using startup_cpus=1.0 for {}",
+            sandbox_name
+        );
+        sandbox_config.startup_cpus = Some(1.0);
+    }
+
+    let effective_cpus = sandbox_config.cpus.unwrap_or(DEFAULT_NUM_VCPUS);
+    if let Some(startup_cpus) = sandbox_config.startup_cpus {
+        if startup_cpus < effective_cpus {
+            tracing::warn!(
+                "startup_cpus ({:.2}) is below cpus ({:.2}) for {}; ignoring startup_cpus",
+                startup_cpus,
+                effective_cpus,
+                sandbox_name
+            );
+            sandbox_config.startup_cpus = None;
+        } else if (startup_cpus - effective_cpus).abs() < f32::EPSILON {
+            sandbox_config.startup_cpus = None;
+        }
+    }
+}
 
 #[allow(clippy::too_many_arguments)]
 async fn setup_image_rootfs(
