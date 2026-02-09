@@ -41,6 +41,7 @@ pub struct MicrosandboxBuilder {
 /// - `meta`: The metadata for the sandbox
 /// - `memory`: The maximum amount of memory allowed for the sandbox
 /// - `cpus`: The maximum number of CPUs allowed for the sandbox
+/// - `startup_cpus`: The number of CPUs to use during startup
 /// - `volumes`: The volumes to mount
 /// - `ports`: The ports to expose
 /// - `envs`: The environment variables to use
@@ -59,6 +60,7 @@ pub struct SandboxBuilder<I> {
     image: I,
     memory: Option<u32>,
     cpus: Option<f32>,
+    startup_cpus: Option<f32>,
     volumes: Vec<PathPair>,
     ports: Vec<PortPair>,
     envs: Vec<EnvPair>,
@@ -141,6 +143,7 @@ impl<I> SandboxBuilder<I> {
             image: image.into(),
             memory: self.memory,
             cpus: self.cpus,
+            startup_cpus: self.startup_cpus,
             volumes: self.volumes,
             ports: self.ports,
             envs: self.envs,
@@ -165,6 +168,25 @@ impl<I> SandboxBuilder<I> {
     /// Sets the maximum number of CPUs allowed for the sandbox
     pub fn cpus(mut self, cpus: f32) -> SandboxBuilder<I> {
         self.cpus = Some(cpus);
+        self
+    }
+
+    /// Sets the number of CPUs to use during startup for the sandbox
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use microsandbox_core::config::{ReferenceOrPath, Sandbox};
+    ///
+    /// let sandbox = Sandbox::builder()
+    ///     .image(ReferenceOrPath::Reference("alpine:latest".parse().unwrap()))
+    ///     .startup_cpus(2.0)
+    ///     .build();
+    ///
+    /// assert_eq!(sandbox.startup_cpus, Some(2.0));
+    /// ```
+    pub fn startup_cpus(mut self, startup_cpus: f32) -> SandboxBuilder<I> {
+        self.startup_cpus = Some(startup_cpus);
         self
     }
 
@@ -259,6 +281,7 @@ impl SandboxBuilder<ReferenceOrPath> {
             image: self.image,
             memory: self.memory,
             cpus: self.cpus,
+            startup_cpus: self.startup_cpus,
             volumes: self.volumes,
             ports: self.ports,
             envs: self.envs,
@@ -286,6 +309,7 @@ impl Default for SandboxBuilder<()> {
             image: (),
             memory: None,
             cpus: None,
+            startup_cpus: None,
             volumes: Vec::new(),
             ports: Vec::new(),
             envs: Vec::new(),

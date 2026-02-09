@@ -39,6 +39,7 @@ pub struct MicroVmConfigBuilder<R, E> {
     log_level: LogLevel,
     rootfs: R,
     num_vcpus: f32,
+    startup_num_vcpus: Option<f32>,
     memory_mib: u32,
     mapped_dirs: Vec<PathPair>,
     port_map: Vec<PortPair>,
@@ -174,6 +175,7 @@ impl<R, M> MicroVmConfigBuilder<R, M> {
             log_level: self.log_level,
             rootfs,
             num_vcpus: self.num_vcpus,
+            startup_num_vcpus: self.startup_num_vcpus,
             memory_mib: self.memory_mib,
             mapped_dirs: self.mapped_dirs,
             port_map: self.port_map,
@@ -212,6 +214,15 @@ impl<R, M> MicroVmConfigBuilder<R, M> {
     /// - More vCPUs aren't always better - consider the workload's needs
     pub fn num_vcpus(mut self, num_vcpus: f32) -> Self {
         self.num_vcpus = num_vcpus;
+        self
+    }
+
+    /// Sets the number of virtual CPUs (vCPUs) to use during startup.
+    ///
+    /// If greater than `num_vcpus`, the MicroVm will start with more vCPUs
+    /// and then be throttled down after it enters RUNNING.
+    pub fn startup_num_vcpus(mut self, startup_num_vcpus: f32) -> Self {
+        self.startup_num_vcpus = Some(startup_num_vcpus);
         self
     }
 
@@ -479,6 +490,7 @@ impl<R, M> MicroVmConfigBuilder<R, M> {
             log_level: self.log_level,
             rootfs: self.rootfs,
             num_vcpus: self.num_vcpus,
+            startup_num_vcpus: self.startup_num_vcpus,
             memory_mib: self.memory_mib,
             mapped_dirs: self.mapped_dirs,
             port_map: self.port_map,
@@ -687,6 +699,37 @@ impl<R, M> MicroVmBuilder<R, M> {
         T: Into<f32>,
     {
         self.inner = self.inner.num_vcpus(num_vcpus.into());
+        self
+    }
+
+    /// Sets the number of virtual CPUs (vCPUs) to use during startup.
+    ///
+    /// If greater than `num_vcpus`, the MicroVm will start with more vCPUs
+    /// and then be throttled down after it enters RUNNING.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust,no_run
+    /// use microsandbox_core::vm::{MicroVm, Rootfs};
+    /// use tempfile::TempDir;
+    ///
+    /// # fn main() -> anyhow::Result<()> {
+    /// let temp_dir = TempDir::new()?;
+    /// let vm = MicroVm::builder()
+    ///     .rootfs(Rootfs::Native(temp_dir.path().to_path_buf()))
+    ///     .memory_mib(1024)
+    ///     .num_vcpus(1.0)
+    ///     .startup_num_vcpus(2.0)
+    ///     .exec_path("/bin/echo")
+    ///     .build()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn startup_num_vcpus<T>(mut self, startup_num_vcpus: T) -> Self
+    where
+        T: Into<f32>,
+    {
+        self.inner = self.inner.startup_num_vcpus(startup_num_vcpus.into());
         self
     }
 
@@ -1020,6 +1063,7 @@ impl MicroVmConfigBuilder<Rootfs, Utf8UnixPathBuf> {
             log_level: self.log_level,
             rootfs: self.rootfs,
             num_vcpus: self.num_vcpus,
+            startup_num_vcpus: self.startup_num_vcpus,
             memory_mib: self.memory_mib,
             mapped_dirs: self.mapped_dirs,
             port_map: self.port_map,
@@ -1073,6 +1117,7 @@ impl MicroVmBuilder<Rootfs, Utf8UnixPathBuf> {
             log_level: self.inner.log_level,
             rootfs: self.inner.rootfs,
             num_vcpus: self.inner.num_vcpus,
+            startup_num_vcpus: self.inner.startup_num_vcpus,
             memory_mib: self.inner.memory_mib,
             mapped_dirs: self.inner.mapped_dirs,
             port_map: self.inner.port_map,
@@ -1099,6 +1144,7 @@ impl Default for MicroVmConfigBuilder<(), ()> {
             log_level: LogLevel::default(),
             rootfs: (),
             num_vcpus: DEFAULT_NUM_VCPUS,
+            startup_num_vcpus: None,
             memory_mib: DEFAULT_MEMORY_MIB,
             mapped_dirs: vec![],
             port_map: vec![],
