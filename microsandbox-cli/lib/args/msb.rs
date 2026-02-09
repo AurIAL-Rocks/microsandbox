@@ -80,6 +80,10 @@ pub enum MicrosandboxSubcommand {
         #[arg(long, alias = "cpu")]
         cpus: Option<f32>,
 
+        /// Number of CPUs to use during startup
+        #[arg(long)]
+        startup_cpus: Option<f32>,
+
         /// Volume mappings, format: <host_path>:<container_path>
         #[arg(short, long = "volume", name = "VOLUME")]
         volumes: Vec<String>,
@@ -292,6 +296,10 @@ pub enum MicrosandboxSubcommand {
         #[arg(long, alias = "cpu")]
         cpus: Option<f32>,
 
+        /// Number of CPUs to use during startup
+        #[arg(long)]
+        startup_cpus: Option<f32>,
+
         /// Memory in MB
         #[arg(long)]
         memory: Option<u32>,
@@ -343,6 +351,10 @@ pub enum MicrosandboxSubcommand {
         /// Number of CPUs
         #[arg(long, alias = "cpu")]
         cpus: Option<f32>,
+
+        /// Number of CPUs to use during startup
+        #[arg(long)]
+        startup_cpus: Option<f32>,
 
         /// Memory in MB
         #[arg(long)]
