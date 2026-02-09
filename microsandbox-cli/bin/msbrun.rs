@@ -65,7 +65,7 @@ use microsandbox_core::{
     runtime::MicroVmMonitor,
     vm::{MicroVm, Rootfs},
 };
-use microsandbox_utils::runtime::Supervisor;
+use microsandbox_utils::{DEFAULT_NUM_VCPUS, runtime::Supervisor};
 
 //--------------------------------------------------------------------------------------------------
 // Functions: main
@@ -82,6 +82,7 @@ async fn main() -> Result<()> {
             native_rootfs,
             overlayfs_layer,
             num_vcpus,
+            startup_cpus,
             memory_mib,
             workdir_path,
             exec_path,
@@ -99,6 +100,7 @@ async fn main() -> Result<()> {
             tracing::debug!("native_rootfs: {:#?}", native_rootfs);
             tracing::debug!("overlayfs_layer: {:#?}", overlayfs_layer);
             tracing::debug!("num_vcpus: {:#?}", num_vcpus);
+            tracing::debug!("startup_cpus: {:#?}", startup_cpus);
             tracing::debug!("memory_mib: {:#?}", memory_mib);
             tracing::debug!("workdir_path: {:#?}", workdir_path);
             tracing::debug!("exec_path: {:#?}", exec_path);
@@ -145,6 +147,11 @@ async fn main() -> Result<()> {
             // Set num vcpus if provided
             if let Some(num_vcpus) = num_vcpus {
                 builder = builder.num_vcpus(num_vcpus);
+            }
+
+            // Set startup vcpus if provided
+            if let Some(startup_cpus) = startup_cpus {
+                builder = builder.startup_num_vcpus(startup_cpus);
             }
 
             // Set memory mib if provided
@@ -214,6 +221,7 @@ async fn main() -> Result<()> {
             native_rootfs,
             overlayfs_layer,
             num_vcpus,
+            startup_cpus,
             memory_mib,
             workdir_path,
             exec_path,
@@ -246,6 +254,12 @@ async fn main() -> Result<()> {
                 }
             };
 
+            let monitor_num_vcpus = if startup_cpus.is_some() {
+                Some(num_vcpus.unwrap_or(DEFAULT_NUM_VCPUS))
+            } else {
+                num_vcpus
+            };
+
             // Create microvm monitor
             let process_monitor = MicroVmMonitor::new(
                 supervisor_pid,
@@ -256,7 +270,8 @@ async fn main() -> Result<()> {
                 log_dir.clone(),
                 rootfs.clone(),
                 forward_output,
-                num_vcpus,
+                monitor_num_vcpus,
+                startup_cpus,
             )
             .await?;
 
@@ -266,6 +281,10 @@ async fn main() -> Result<()> {
             // Set num vcpus if provided
             if let Some(num_vcpus) = num_vcpus {
                 child_args.push(format!("--num-vcpus={}", num_vcpus));
+            }
+
+            if let Some(startup_cpus) = startup_cpus {
+                child_args.push(format!("--startup-cpus={}", startup_cpus));
             }
 
             // Set memory mib if provided

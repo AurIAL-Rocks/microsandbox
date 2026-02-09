@@ -39,6 +39,10 @@ pub enum McrunSubcommand {
         #[arg(long)]
         num_vcpus: Option<f32>,
 
+        /// Number of virtual CPUs to use during startup (supports fractional values)
+        #[arg(long)]
+        startup_cpus: Option<f32>,
+
         /// Memory size in MiB
         #[arg(long)]
         memory_mib: Option<u32>,
@@ -122,6 +126,10 @@ pub enum McrunSubcommand {
         /// Number of virtual CPUs (supports fractional values)
         #[arg(long)]
         num_vcpus: Option<f32>,
+
+        /// Number of virtual CPUs to use during startup (supports fractional values)
+        #[arg(long)]
+        startup_cpus: Option<f32>,
 
         /// Memory size in MiB
         #[arg(long)]
