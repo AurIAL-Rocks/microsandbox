@@ -162,6 +162,9 @@ pub struct SandboxConfig {
     /// The number of vCPUs to use (supports fractional values like 0.5, 0.25)
     pub cpus: Option<f32>,
 
+    /// The number of vCPUs to use during startup (supports fractional values like 0.5, 0.25)
+    pub startup_cpus: Option<f32>,
+
     /// The volumes to mount
     #[serde(default)]
     pub volumes: Vec<String>,
@@ -443,6 +446,7 @@ mod tests {
             image: Some("node:20".to_string()),
             memory: Some(1024),
             cpus: Some(0.25),
+            startup_cpus: None,
             volumes: vec![],
             ports: vec![],
             envs: vec![],
@@ -455,5 +459,23 @@ mod tests {
 
         let value = serde_json::to_value(&cfg).unwrap();
         assert_eq!(value.get("cpus").and_then(|v| v.as_f64()), Some(0.25));
+    }
+
+    #[test]
+    fn deserializes_sandbox_config_with_startup_cpus() {
+        let json = r#"{
+            "image": "python:3.11-slim",
+            "memory": 512,
+            "cpus": 1.0,
+            "startup_cpus": 2.0,
+            "volumes": [],
+            "ports": [],
+            "envs": [],
+            "depends_on": []
+        }"#;
+
+        let cfg: SandboxConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(cfg.cpus, Some(1.0));
+        assert_eq!(cfg.startup_cpus, Some(2.0));
     }
 }
