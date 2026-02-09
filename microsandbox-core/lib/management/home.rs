@@ -116,6 +116,7 @@ pub async fn clean(force: bool) -> MicrosandboxResult<()> {
 /// * `script` - The name of the script to execute within the sandbox
 /// * `alias` - The alias name to use for the script, if not provided, the script name is used
 /// * `cpus` - Optional number of virtual CPUs to allocate to the sandbox
+/// * `startup_cpus` - Optional number of virtual CPUs to allocate during startup
 /// * `memory` - Optional amount of memory in MiB to allocate to the sandbox
 /// * `volumes` - List of volume mappings in the format "host_path:guest_path"
 /// * `ports` - List of port mappings in the format "host_port:guest_port"
@@ -148,6 +149,7 @@ pub async fn clean(force: bool) -> MicrosandboxResult<()> {
 ///     Some("shell"),          // Run shell script
 ///     Some("ubuntu-shell"),   // Custom alias
 ///     Some(2.0),                // 2 CPUs
+///     None,                   // No startup CPU override
 ///     Some(1024),             // 1GB RAM
 ///     vec![                   // Mount host's /tmp to sandbox's /data
 ///         "/tmp:/data".to_string()
@@ -173,6 +175,7 @@ pub async fn install(
     script: Option<&str>,
     alias: Option<&str>,
     cpus: Option<f32>,
+    startup_cpus: Option<f32>,
     memory: Option<u32>,
     volumes: Vec<String>,
     ports: Vec<String>,
@@ -218,6 +221,10 @@ pub async fn install(
 
         if let Some(cpus) = cpus {
             b = b.cpus(cpus);
+        }
+
+        if let Some(startup_cpus) = startup_cpus {
+            b = b.startup_cpus(startup_cpus);
         }
 
         if let Some(memory) = memory {

@@ -44,6 +44,7 @@ async fn main() -> MicrosandboxCliResult<()> {
             image,
             memory,
             cpus,
+            startup_cpus,
             volumes,
             ports,
             envs,
@@ -60,8 +61,27 @@ async fn main() -> MicrosandboxCliResult<()> {
         }) => {
             let (path, config) = handlers::parse_file_path(file);
             handlers::add_subcommand(
-                sandbox, build, names, image, memory, cpus, volumes, ports, envs, env_file,
-                depends_on, workdir, shell, scripts, start, imports, exports, scope, path, config,
+                sandbox,
+                build,
+                names,
+                image,
+                memory,
+                cpus,
+                startup_cpus,
+                volumes,
+                ports,
+                envs,
+                env_file,
+                depends_on,
+                workdir,
+                shell,
+                scripts,
+                start,
+                imports,
+                exports,
+                scope,
+                path,
+                config,
             )
             .await?;
         }
@@ -117,6 +137,7 @@ async fn main() -> MicrosandboxCliResult<()> {
             image: _image,
             name,
             cpus,
+            startup_cpus,
             memory,
             volumes,
             ports,
@@ -127,7 +148,17 @@ async fn main() -> MicrosandboxCliResult<()> {
             args,
         }) => {
             handlers::exe_subcommand(
-                name, cpus, memory, volumes, ports, envs, workdir, scope, exec, args,
+                name,
+                cpus,
+                startup_cpus,
+                memory,
+                volumes,
+                ports,
+                envs,
+                workdir,
+                scope,
+                exec,
+                args,
             )
             .await?;
         }
@@ -136,6 +167,7 @@ async fn main() -> MicrosandboxCliResult<()> {
             name,
             alias,
             cpus,
+            startup_cpus,
             memory,
             volumes,
             ports,
@@ -146,7 +178,18 @@ async fn main() -> MicrosandboxCliResult<()> {
             args,
         }) => {
             handlers::install_subcommand(
-                name, alias, cpus, memory, volumes, ports, envs, workdir, scope, exec, args,
+                name,
+                alias,
+                cpus,
+                startup_cpus,
+                memory,
+                volumes,
+                ports,
+                envs,
+                workdir,
+                scope,
+                exec,
+                args,
             )
             .await?;
         }
