@@ -511,6 +511,13 @@ pub async fn sandbox_start_impl(
             );
         }
 
+        if let Some(startup_cpus) = config.startup_cpus {
+            sandbox_map.insert(
+                serde_yaml::Value::String("startup_cpus".to_string()),
+                serde_yaml::Value::Number(serde_yaml::Number::from(startup_cpus)),
+            );
+        }
+
         if !config.volumes.is_empty() {
             let volumes_array = config
                 .volumes
@@ -726,6 +733,29 @@ fn adjust_config_for_platform(config: &mut SandboxConfig) {
         tracing::warn!("fractional CPUs are only supported on Linux; using cpus=1.0");
         config.cpus = Some(1.0);
     }
+
+    if let Some(startup_cpus) = config.startup_cpus
+        && startup_cpus < 1.0
+        && !cfg!(target_os = "linux")
+    {
+        tracing::warn!(
+            "fractional startup CPUs are only supported on Linux; using startup_cpus=1.0"
+        );
+        config.startup_cpus = Some(1.0);
+    }
+
+    if let (Some(startup_cpus), Some(cpus)) = (config.startup_cpus, config.cpus) {
+        if startup_cpus < cpus {
+            tracing::warn!(
+                "startup_cpus ({:.2}) is below cpus ({:.2}); ignoring startup_cpus",
+                startup_cpus,
+                cpus
+            );
+            config.startup_cpus = None;
+        } else if (startup_cpus - cpus).abs() < f32::EPSILON {
+            config.startup_cpus = None;
+        }
+    }
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -745,6 +775,7 @@ mod tests {
             image: Some("alpine:latest".to_string()),
             memory: None,
             cpus: Some(0.1),
+            startup_cpus: None,
             volumes: vec![],
             ports: vec![],
             envs: vec![],
@@ -766,6 +797,7 @@ mod tests {
             image: Some("alpine:latest".to_string()),
             memory: None,
             cpus: Some(0.1),
+            startup_cpus: None,
             volumes: vec![],
             ports: vec![],
             envs: vec![],
