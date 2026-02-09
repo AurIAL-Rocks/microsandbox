@@ -64,6 +64,9 @@ pub struct MicroVmMonitor {
     /// The requested number of CPUs, if provided
     num_vcpus: Option<f32>,
 
+    /// The requested startup CPUs, if provided
+    startup_num_vcpus: Option<f32>,
+
     /// The cgroup name used for throttling (Linux only)
     #[cfg(target_os = "linux")]
     cgroup_name: Option<String>,
@@ -86,6 +89,7 @@ impl MicroVmMonitor {
         rootfs: Rootfs,
         forward_output: bool,
         num_vcpus: Option<f32>,
+        startup_num_vcpus: Option<f32>,
     ) -> MicrosandboxResult<Self> {
         Ok(Self {
             supervisor_pid,
@@ -99,6 +103,7 @@ impl MicroVmMonitor {
             original_term: None,
             forward_output,
             num_vcpus,
+            startup_num_vcpus,
             #[cfg(target_os = "linux")]
             cgroup_name: None,
         })
@@ -139,7 +144,11 @@ impl MicroVmMonitor {
             return;
         };
 
-        if num_vcpus >= 1.0 {
+        let startup_override = self
+            .startup_num_vcpus
+            .filter(|startup| *startup > num_vcpus);
+
+        if startup_override.is_none() && num_vcpus >= 1.0 {
             return;
         }
 
