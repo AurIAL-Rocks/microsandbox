@@ -125,6 +125,10 @@ pub struct MicroVmConfig {
     /// Valid range: 0.1 to 128.0. Values less than 1.0 will be throttled using cgroups.
     pub num_vcpus: f32,
 
+    /// The number of vCPUs to use during startup (supports fractional values like 0.5, 0.25).
+    /// Valid range: 0.1 to 128.0. If greater than `num_vcpus`, a post-start throttle is applied.
+    pub startup_num_vcpus: Option<f32>,
+
     /// The amount of memory in MiB to use for the MicroVm.
     pub memory_mib: u32,
 
@@ -315,8 +319,13 @@ impl MicroVm {
 
         // Convert f32 CPU count to u8 for libkrun
         // For fractional CPUs, we allocate at least 1 vCPU and use cgroups to throttle
-        let vcpus_for_krun = if config.num_vcpus >= 1.0 {
-            config.num_vcpus.ceil() as u8
+        let requested_startup_cpus = config
+            .startup_num_vcpus
+            .filter(|startup| *startup > config.num_vcpus)
+            .unwrap_or(config.num_vcpus);
+
+        let vcpus_for_krun = if requested_startup_cpus >= 1.0 {
+            requested_startup_cpus.ceil() as u8
         } else {
             1u8 // Minimum 1 vCPU for libkrun
         };
