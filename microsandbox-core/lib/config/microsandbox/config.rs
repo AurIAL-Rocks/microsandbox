@@ -136,6 +136,12 @@ pub struct Build {
     #[builder(default, setter(strip_option))]
     pub(crate) cpus: Option<f32>,
 
+    /// The number of vCPUs to use during startup (supports fractional values like 0.5, 0.25).
+    /// Valid range: 0.1 to 128.0
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    #[builder(default, setter(strip_option))]
+    pub(crate) startup_cpus: Option<f32>,
+
     /// The volumes to mount.
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     #[builder(default)]
@@ -247,6 +253,11 @@ pub struct Sandbox {
     /// Valid range: 0.1 to 128.0
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub(crate) cpus: Option<f32>,
+
+    /// The number of vCPUs to use during startup (supports fractional values like 0.5, 0.25).
+    /// Valid range: 0.1 to 128.0
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub(crate) startup_cpus: Option<f32>,
 
     /// The volumes to mount.
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
@@ -540,6 +551,7 @@ mod tests {
         assert!(sandbox.version.is_none());
         assert!(sandbox.memory.is_none());
         assert!(sandbox.cpus.is_none());
+        assert!(sandbox.startup_cpus.is_none());
         assert!(sandbox.volumes.is_empty());
         assert!(sandbox.ports.is_empty());
         assert!(sandbox.envs.is_empty());
@@ -594,6 +606,7 @@ mod tests {
                 image: "alpine:latest"
                 memory: 1024
                 cpus: 2
+                startup_cpus: 3
                 volumes:
                   - "./src:/app/src"
                 ports:
@@ -636,6 +649,7 @@ mod tests {
         assert_eq!(sandbox.version.as_ref().unwrap().to_string(), "1.0.0");
         assert_eq!(sandbox.memory.unwrap(), 1024);
         assert_eq!(sandbox.cpus.unwrap(), 2.0);
+        assert_eq!(sandbox.startup_cpus.unwrap(), 3.0);
         assert_eq!(sandbox.volumes[0].to_string(), "./src:/app/src");
         assert_eq!(sandbox.ports[0].to_string(), "8080:80");
         assert_eq!(sandbox.envs[0].to_string(), "DEBUG=true");
@@ -668,6 +682,7 @@ mod tests {
                 image: "python:3.11-slim"
                 memory: 2048
                 cpus: 2
+                startup_cpus: 3
                 volumes:
                   - "./requirements.txt:/build/requirements.txt"
                 envs:
@@ -687,6 +702,7 @@ mod tests {
                 image: "python:3.11-slim"
                 memory: 1024
                 cpus: 1
+                startup_cpus: 2
                 volumes:
                   - "./api:/app/src"
                 ports:
@@ -721,6 +737,7 @@ mod tests {
         let base_build = builds.get("base_build").unwrap();
         assert_eq!(base_build.memory.unwrap(), 2048);
         assert_eq!(base_build.cpus.unwrap(), 2.0);
+        assert_eq!(base_build.startup_cpus.unwrap(), 3.0);
         assert_eq!(
             base_build.workdir.as_ref().unwrap(),
             &Utf8UnixPathBuf::from("/build")
@@ -745,6 +762,7 @@ mod tests {
         assert_eq!(api.version.as_ref().unwrap().to_string(), "1.0.0");
         assert_eq!(api.memory.unwrap(), 1024);
         assert_eq!(api.cpus.unwrap(), 1.0);
+        assert_eq!(api.startup_cpus.unwrap(), 2.0);
         assert_eq!(api.depends_on, vec!["database", "cache"]);
         assert_eq!(api.scope, NetworkScope::Public);
     }

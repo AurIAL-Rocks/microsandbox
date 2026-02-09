@@ -37,6 +37,9 @@ pub struct SandboxConfig {
     /// The number of CPUs to use.
     pub cpus: Option<f32>,
 
+    /// The number of CPUs to use during startup.
+    pub startup_cpus: Option<f32>,
+
     /// The volumes to mount.
     pub volumes: Vec<String>,
 
@@ -169,6 +172,10 @@ pub async fn add(
 
                 if let Some(cpus_value) = config.cpus {
                     sandbox_mapping.insert_f32("cpus", cpus_value);
+                }
+
+                if let Some(startup_cpus_value) = config.startup_cpus {
+                    sandbox_mapping.insert_f32("startup_cpus", startup_cpus_value);
                 }
 
                 // Add shell (default if not provided)
